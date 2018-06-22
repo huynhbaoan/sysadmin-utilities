@@ -1,6 +1,5 @@
 #!/bin/bash
-set -x
-WORKING_DIR="/root/svnbackup_report"
+WORKING_DIR="/root/svnbackup_report/"
 echo $(date '+%d-%m-%Y_%H-%M-%S') >> $WORKING_DIR"svndump.err"
 while read LINE
 do
