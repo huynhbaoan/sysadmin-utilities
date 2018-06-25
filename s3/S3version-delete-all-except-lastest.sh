@@ -6,12 +6,12 @@ AWSPATH="/home/gsysadmin/.local/bin/"
 
 set -e
 
-echo "Removing all versions from $bucket"
+echo "Getting all, except latest versions from $bucket to remove. This may take a long time."
 
 versions=`"$AWSPATH"aws s3api list-object-versions --bucket $bucket |jq '.Versions | .[] | select(.IsLatest | not)'`
 markers=`"$AWSPATH"aws s3api list-object-versions --bucket $bucket |jq '.DeleteMarkers'`
 
-echo "removing files"
+echo "Removing files....."
 for version in $(echo "${versions}" | jq -r '@base64'); do
     version=$(echo ${version} | base64 --decode)
 
@@ -22,7 +22,7 @@ for version in $(echo "${versions}" | jq -r '@base64'); do
     $cmd
 done
 
-echo "removing delete markers"
+echo "Removing delete markers....."
 for marker in $(echo "${markers}" | jq -r '.[] | @base64'); do
     marker=$(echo ${marker} | base64 --decode)
 
