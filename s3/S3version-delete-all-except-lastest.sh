@@ -4,7 +4,7 @@
 bucket=$1
 AWSPATH="/home/gsysadmin/.local/bin/"
 
-set -e
+#set -e
 
 echo "Getting all, except latest versions from $bucket to remove. This may take a long time."
 
