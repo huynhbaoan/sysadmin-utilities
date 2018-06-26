@@ -35,9 +35,9 @@ done < $WORKING_DIR"svnrepotime"
 
 
 ### Determine year, month, day as timestamp limit: file with older timestampt is archived to Glacier
-YEARP=$(date +%Y -d "150 day ago")
-MONTHP=$(date +%m -d "150 day ago")
-DAYP=$(date +%d -d "150 day ago")
+YEARP=$(date +%Y -d "7 day ago")
+MONTHP=$(date +%m -d "7 day ago")
+DAYP=$(date +%d -d "7 day ago")
 
 echo -n > $WORKING_DIR"svndump.list"
 while read LINE; 
