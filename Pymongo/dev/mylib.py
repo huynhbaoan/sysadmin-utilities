@@ -62,8 +62,8 @@ def backup_delete_docs(BACKUP_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, 
         # pprint.pprint(cursor.explain())    # leave here to debug of neccessary
 
         """Sleep to reduce memory stress on Mongo server"""
-        print ("Search completed. Waiting 10 seconds for Mongo server...")
-        time.sleep(0.001)
+        print ("Search completed. Waiting 15 seconds for Mongo server...")
+        time.sleep(15)
 
         """Backup, list docs to delete"""
         total = 0
@@ -94,7 +94,7 @@ def backup_delete_docs(BACKUP_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, 
                     ID = line.rstrip()
                     RESULT = collection.delete_one({'_id': ID})
                     print ("Deleting: ",ID,"   Return: ",RESULT.deleted_count)
-                    time.sleep(0.001)
+                    #time.sleep(0.001)
 
             PART_NUM += 1
 
@@ -162,8 +162,7 @@ def restore_docs(DIR, BACKUP_PATTERN, DAY, MONTH, YEAR, collection, BEGIN_PART_N
     
     FULLPATH = os.path.join(DIR + BACKUP_PATTERN, BACKUP_PATTERN + "_" + str(DAY) + \
                 "_" + str(MONTH) + "_" + str(YEAR))
-    FULLPATH = os.path.join(DIR + BACKUP_PATTERN + "_old", BACKUP_PATTERN + "_" + str(DAY) + \
-                "_" + str(MONTH) + "_" + str(YEAR))
+    print ("Restoring ",BACKUP_PATTERN,DAY,MONTH,YEAR)
     for file in glob.glob(FULLPATH + "*.bson"):
         print ("Restoring from ",file)    
         with open(file, 'rb') as f:

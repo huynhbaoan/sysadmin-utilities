@@ -6,25 +6,29 @@ import pprint
 import mylib
 
 
+BACKUP_PATTERN = 'GameRewardLog'
+
+
 """MongoDB connection"""
 client = MongoClient('mongodb://127.0.0.1:27017/')
 db = client['mondra_log_restore']
-collection = db['GameRewardLog']
-BACKUP_PATTERN = 'GameRewardLog'
+collection = db[BACKUP_PATTERN]
+
 DIR = '/home/huynhbaoan/PythonProject/Pymongo/dev/'
 
-collection.drop()
-# print(collection)
 
 """ Time range to backup
     Be careful with BEGIN_PART_NUM."""
-BEGIN_DAY = 1
-BEGIN_MONTH = 1
+BEGIN_DAY = 2
+BEGIN_MONTH = 12
 BEGIN_YEAR = 2016
-END_DAY = 31
-END_MONTH = 2
+END_DAY = 3
+END_MONTH = 12
 END_YEAR = 2016
 BEGIN_PART_NUM = 1
+
+
+#collection.drop()
 
 
 """Validate time range"""

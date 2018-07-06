@@ -4,17 +4,14 @@ import pymongo
 from pymongo import MongoClient
 import mylib
 
-DB_CHOOSEN = 'GameRewardLog'
+
+BACKUP_PATTERN = 'GameRewardLog'
+
 
 """MongoDB connection"""
 client = MongoClient('mongodb://127.0.0.1:27017/')
 db = client['mondra_log']
-#collection = db['GameRewardLog']
-#BACKUP_PATTERN = 'GameRewardLog'
-collection = db[DB_CHOOSEN]
-BACKUP_PATTERN = DB_CHOOSEN
-
-# collection = db['BattleReport_01_01_2017']
+collection = db[BACKUP_PATTERN]
 
 
 """ Time range to backup
@@ -72,7 +69,7 @@ for YEAR in range(BEGIN_YEAR, END_YEAR+1):
                     mylib.backup_delete_docs(BACKUP_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
             
 
-mylib.re_arrange(DB_CHOOSEN)
+mylib.re_arrange(BACKUP_PATTERN)
 
 
 
