@@ -9,8 +9,9 @@ import pprint, datetime, time, os, errno, glob, shutil
 
 
 """Time range validator"""
-def timerange_validate (BEGIN_MONTH, BEGIN_YEAR, END_MONTH, END_YEAR):
+def timerange_validate (BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, END_DAY, END_MONTH, END_YEAR):
     """Validate time range to cut log"""
+    RESULT = 2
     if BEGIN_YEAR > END_YEAR:
         print ("Invalid time range. END YEAR is lower than BEGIN YEAR")
         RESULT = 1
@@ -18,46 +19,51 @@ def timerange_validate (BEGIN_MONTH, BEGIN_YEAR, END_MONTH, END_YEAR):
         if BEGIN_MONTH > END_MONTH:
             print ("Invalid time range. END MONTH is lower than BEGIN MONTH")
             RESULT = 1
-        else:
-            RESULT = 0
+        elif BEGIN_MONTH == END_MONTH:
+            if BEGIN_DAY > END_DAY:
+                print ("Invalid time range. END DAY is lower than BEGIN DAY")
+                RESULT = 1
+            else:
+                RESULT = 0
     else:
         RESULT = 0
     return RESULT
 """*******************End of def*****************************************"""
 
 
+
 """Main archive engine, find, backup and delete document"""
-def backup_delete_docs(BACKUP_PATTERN, BEGIN_MONTH, BEGIN_YEAR, MONTH, YEAR, collection, BEGIN_PART_NUM):
+def backup_delete_docs(BACKUP_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM):
     
     """Convert normal DATE to EPOCH DATE"""
-    BEGIN_DATE = datetime.datetime(BEGIN_YEAR,BEGIN_MONTH,1,0,0,0)
-    END_DATE = datetime.datetime(YEAR,MONTH,1,0,0,0)
+    BEGIN_DATE = datetime.datetime(BEGIN_YEAR,BEGIN_MONTH,BEGIN_DAY,0,0,0)
+    END_DATE = datetime.datetime(YEAR,MONTH,DAY,0,0,0)
     EPOCH = datetime.datetime.utcfromtimestamp(0)
     E_BEGIN_DATE = (BEGIN_DATE - EPOCH).total_seconds() * 1000
     E_END_DATE = (END_DATE - EPOCH).total_seconds() * 1000
 
 
-
-
     FLAG = 0
     PART_NUM = BEGIN_PART_NUM
     while FLAG == 0:
+
+        """Generate filename to backup/delete"""    
+        OUTPUT_FILENAME = str(BACKUP_PATTERN)+'_'+str(DAY)+'_'+str(MONTH)+'_'+str(YEAR)+'_'+str(PART_NUM)+'.bson'
+        DELETELIST_FILENAME = str(BACKUP_PATTERN)+'_'+str(DAY)+'_'+str(MONTH)+'_'+str(YEAR)+'_'+str(PART_NUM)+'.txt'
+        print ("Current filename: ",DELETELIST_FILENAME)
+
         """Generate cursor to find document"""
-        print("Searching 50.000 docs to delete...")
+        print ("Searching 50.000 docs to delete...")
         cursor = collection.find( { '$and': [
             {'createdAt': { '$lt': E_END_DATE } }, \
             {'createdAt': { '$gte': E_BEGIN_DATE } } \
             ] } )\
             .max_scan(50000)
-        # pprint.pprint(cursor.explain())
+        # pprint.pprint(cursor.explain())    # leave here to debug of neccessary
 
         """Sleep to reduce memory stress on Mongo server"""
-        print ("Waiting 10 sencond for Mongo server...")
-        time.sleep(10)
-
-        """Generate filename to backup/delete"""    
-        OUTPUT_FILENAME = str(BACKUP_PATTERN)+'_xx_'+str(MONTH)+'_'+str(YEAR)+'_'+str(PART_NUM)+'.bson'
-        DELETELIST_FILENAME = str(BACKUP_PATTERN)+'_xx_'+str(MONTH)+'_'+str(YEAR)+'_'+str(PART_NUM)+'.txt'
+        print ("Search completed. Waiting 10 seconds for Mongo server...")
+        time.sleep(0.001)
 
         """Backup, list docs to delete"""
         total = 0
@@ -68,11 +74,13 @@ def backup_delete_docs(BACKUP_PATTERN, BEGIN_MONTH, BEGIN_YEAR, MONTH, YEAR, col
                     print ("Add docs to delete: "+item['_id'])
                     tf.write(BSON.encode(item))
                     lf.write(str(item['_id'])+'\n')
-        print (OUTPUT_FILENAME+" total documents: ", total)
+        print (OUTPUT_FILENAME+" .Total documents: ", total)
         time.sleep(2)
 
         
         """Decide either stop or continue to search"""
+        """FLAG 0: continue, FLAG 1: stop"""
+        """DELETELIST_FILENAME = 0 bytes mean no record to delete, then stop"""
         if (os.stat(DELETELIST_FILENAME).st_size == 0) == True:
             FLAG = 1
             print (DELETELIST_FILENAME+": No more docs to delete")
@@ -92,9 +100,7 @@ def backup_delete_docs(BACKUP_PATTERN, BEGIN_MONTH, BEGIN_YEAR, MONTH, YEAR, col
 
         print ("Current FLAG: ",FLAG)
         print ("Last filename: ",DELETELIST_FILENAME)
-
-
-
+        print;print;print;
 """*******************End of def**************************************"""
 
 
@@ -102,16 +108,18 @@ def backup_delete_docs(BACKUP_PATTERN, BEGIN_MONTH, BEGIN_YEAR, MONTH, YEAR, col
 """Move backed up file to new location"""
 def re_arrange(BACKUP_PATTERN):
     
-    """Rename any exitsted files/directories to avoid overwriting data"""
+    """Rename any exitsted files/directories based on current timestamp to avoid overwriting data"""
+    CURRENT_DATE = str(datetime.date.today()).replace("-","")
+    CURRENT_TIME = str(datetime.datetime.now().time()).replace(":","").split(".")[0]
     TEMPSRC = BACKUP_PATTERN
     if os.path.exists(TEMPSRC) == True:
-        TEMPDST = BACKUP_PATTERN+'_old'
+        TEMPDST = BACKUP_PATTERN+'_'+CURRENT_DATE+'_'+CURRENT_TIME
         print("Move ",TEMPSRC," to ",TEMPDST)
         os.rename(TEMPSRC, TEMPDST)
     
     TEMPSRC = BACKUP_PATTERN+'_removelist'
     if os.path.exists(TEMPSRC) == True:
-        TEMPDST = BACKUP_PATTERN+'_removelist_old'
+        TEMPDST = BACKUP_PATTERN+'_removelist_'+CURRENT_DATE+'_'+CURRENT_TIME
         print("Move ",TEMPSRC," to ",TEMPDST)
         os.rename(TEMPSRC, TEMPDST)
 
@@ -132,7 +140,7 @@ def re_arrange(BACKUP_PATTERN):
     Move all .bson, .txt file to new directory"""
     for file in glob.glob(BACKUP_PATTERN+"*.bson"):
         if (os.stat(file).st_size == 0) == True:
-            print("Delete ",file)
+            print("Delete empty BSON file ",file)
             os.remove(file)
         else:
             print("Move ",file)
@@ -140,7 +148,7 @@ def re_arrange(BACKUP_PATTERN):
     DST = BACKUP_PATTERN+'_removelist'
     for file in glob.glob(BACKUP_PATTERN+"*.txt"):
         if (os.stat(file).st_size == 0) == True:
-            print("Delete ",file)
+            print("Delete empty LIST ",file)
             os.remove(file)
         else:
             print("Move ",file)
@@ -150,12 +158,12 @@ def re_arrange(BACKUP_PATTERN):
 
 
 """ Main engine to restore docs from bson """
-def restore_docs(DIR, BACKUP_PATTERN, MONTH, YEAR, collection, BEGIN_PART_NUM):
+def restore_docs(DIR, BACKUP_PATTERN, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM):
     
-    # FULLPATH = os.path.join(DIR + BACKUP_PATTERN, BACKUP_PATTERN + "_xx_" + str(MONTH) + \
-    #             "_" + str(YEAR))
-    FULLPATH = os.path.join(DIR + BACKUP_PATTERN + "_old", BACKUP_PATTERN + "_xx_" + str(MONTH) + \
-            "_" + str(YEAR))
+    FULLPATH = os.path.join(DIR + BACKUP_PATTERN, BACKUP_PATTERN + "_" + str(DAY) + \
+                "_" + str(MONTH) + "_" + str(YEAR))
+    FULLPATH = os.path.join(DIR + BACKUP_PATTERN + "_old", BACKUP_PATTERN + "_" + str(DAY) + \
+                "_" + str(MONTH) + "_" + str(YEAR))
     for file in glob.glob(FULLPATH + "*.bson"):
         print ("Restoring from ",file)    
         with open(file, 'rb') as f:
