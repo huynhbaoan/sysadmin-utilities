@@ -7,6 +7,9 @@ import time
 import datetime
 import os
 import mylib
+import calendar
+
+
 
 BACKUP_PATTERN = 'GameRewardLog'
 
@@ -19,15 +22,17 @@ collection = db[BACKUP_PATTERN]
 
 # list = db.list_collection_names()
 # print ("\n\nFINAL RESULT: "+str(list))
+# pprint.pprint (db.current_op())
+# pprint.pprint(collection.find_one())
 
 
-#mylib.re_arrange('GameRewardLog')
+#mylib.re_arrange(BACKUP_PATTERN)
 
 
 print (collection.count())
 ### This part is used to test result after import
 """Generate cursor to find document"""
-cursor = collection.find().max_scan(100)
+cursor = collection.find().max_scan(10)
 total = 0
 for docs in cursor:
     pprint.pprint(docs)

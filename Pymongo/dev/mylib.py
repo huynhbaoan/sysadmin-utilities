@@ -4,7 +4,7 @@ from bson import BSON, Binary, Code, decode_all
 from bson.json_util import loads, dumps
 from bson.objectid import ObjectId
 from pymongo import InsertOne, DeleteOne, ReplaceOne
-import pprint, datetime, time, os, errno, glob, shutil
+import pprint, datetime, time, calendar, os, errno, glob, shutil
 
 
 
@@ -33,7 +33,7 @@ def timerange_validate (BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, END_DAY, END_MONTH, 
 
 
 """Main archive engine, find, backup and delete document"""
-def backup_delete_docs(BACKUP_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM):
+def backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM):
     
     """Convert normal DATE to EPOCH DATE"""
     BEGIN_DATE = datetime.datetime(BEGIN_YEAR,BEGIN_MONTH,BEGIN_DAY,0,0,0)
@@ -55,15 +55,12 @@ def backup_delete_docs(BACKUP_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, 
         """Generate cursor to find document"""
         print ("Searching 50.000 docs to delete...")
         cursor = collection.find( { '$and': [
-            {'createdAt': { '$lt': E_END_DATE } }, \
-            {'createdAt': { '$gte': E_BEGIN_DATE } } \
+            {INDEX_PATTERN: { '$lt': E_END_DATE } }, \
+            {INDEX_PATTERN: { '$gte': E_BEGIN_DATE } } \
             ] } )\
             .max_scan(50000)
         # pprint.pprint(cursor.explain())    # leave here to debug of neccessary
 
-        """Sleep to reduce memory stress on Mongo server"""
-        print ("Search completed. Waiting 15 seconds for Mongo server...")
-        time.sleep(15)
 
         """Backup, list docs to delete"""
         total = 0
@@ -75,7 +72,13 @@ def backup_delete_docs(BACKUP_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, 
                     tf.write(BSON.encode(item))
                     lf.write(str(item['_id'])+'\n')
         print (OUTPUT_FILENAME+" .Total documents: ", total)
-        time.sleep(2)
+
+        if total > 0:
+            """Sleep to reduce memory stress on Mongo server"""
+            print ("Search completed. Waiting 2 seconds for Mongo server...")
+            time.sleep(2)
+        else:
+            print ("No docs found. Skip waiting.")
 
         
         """Decide either stop or continue to search"""
