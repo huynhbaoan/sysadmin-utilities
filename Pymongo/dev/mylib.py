@@ -196,11 +196,13 @@ def compress_docs(DIR, BACKUP_PATTERN, MONTH, YEAR):
             if os.path.isfile(TARFILE) != True:
                 try:
                     with tarfile.TarFile.gzopen(TARFILE, mode='w', compresslevel=9) as targz:
+                        print("Create archive: ", TARFILE)
                         for FILE in glob.glob(FULLPATH + '/' + BACKUP_PATTERN + '_*_' + str(MONTH) + '_' + str(YEAR) + '_*' + ".bson"):
                             try:
                                 ### Split head, tail to avoid adding fullpath to tarfile
                                 head, tail = os.path.split(FILE)
                                 targz.add(FILE, arcname=tail)
+                                print("Compressed BSON file: ", tail)
                             except:
                                 print("Error adding file ", FILE, "Error: ", sys.exc_info())
                                 raise

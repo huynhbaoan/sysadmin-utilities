@@ -1,8 +1,6 @@
 #!/usr/bin/python
 
-import pymongo
-from pymongo import MongoClient
-import archive_lib, mylib
+import mylib
 import time, datetime, calendar
 
 
