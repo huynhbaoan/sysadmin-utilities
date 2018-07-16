@@ -4,7 +4,8 @@ from bson import BSON, Binary, Code, decode_all
 from bson.json_util import loads, dumps
 from bson.objectid import ObjectId
 from pymongo import InsertOne, DeleteOne, ReplaceOne
-import pprint, datetime, time, calendar, os, errno, glob, shutil
+import pprint, datetime, time, calendar, sys, os, errno, glob, shutil
+import tarfile, gzip
 
 
 
@@ -160,7 +161,7 @@ def re_arrange(BACKUP_PATTERN):
 
 
 
-""" Main engine to restore docs from bson """
+""" Restore docs from BSON file """
 def restore_docs(DIR, BACKUP_PATTERN, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM):
     
     FULLPATH = os.path.join(DIR + BACKUP_PATTERN, BACKUP_PATTERN + "_" + str(DAY) + \
@@ -170,3 +171,67 @@ def restore_docs(DIR, BACKUP_PATTERN, DAY, MONTH, YEAR, collection, BEGIN_PART_N
         print ("Restoring from ",file)    
         with open(file, 'rb') as f:
             collection.insert(decode_all(f.read()))
+"""*******************End of def**************************************"""
+
+
+
+""" Compress BSON file  """
+def compress_docs(DIR, BACKUP_PATTERN, MONTH, YEAR):
+    LISTDIR = []
+
+    ### Get list of child directories inside backed up directory.
+    ### Break: only decend 1 level 
+    for (root, dirs, files) in os.walk(DIR, topdown=True, followlinks=False):
+        LISTDIR = dirs
+        break
+
+    ### Filter child directories list. Only scan .BSON file inside directories which have BACKUP_PATTERN
+    for CHILD_DIR in LISTDIR:
+        if BACKUP_PATTERN in CHILD_DIR and '_removelist' not in CHILD_DIR:
+            ### Get FULLPATH, use for glob scan later
+            FULLPATH = os.path.join(DIR , CHILD_DIR)
+
+            ### Create archive
+            TARFILE = os.path.join(DIR, CHILD_DIR, BACKUP_PATTERN + '_' + str(MONTH) + '_' + str(YEAR) + '.tar.gz')
+            if os.path.isfile(TARFILE) != True:
+                try:
+                    with tarfile.TarFile.gzopen(TARFILE, mode='w', compresslevel=9) as targz:
+                        for FILE in glob.glob(FULLPATH + '/' + BACKUP_PATTERN + '_*_' + str(MONTH) + '_' + str(YEAR) + '_*' + ".bson"):
+                            try:
+                                ### Split head, tail to avoid adding fullpath to tarfile
+                                head, tail = os.path.split(FILE)
+                                targz.add(FILE, arcname=tail)
+                            except:
+                                print("Error adding file ", FILE, "Error: ", sys.exc_info())
+                                raise
+                except:
+                    print("Unexpected error:", sys.exc_info())
+                    raise
+
+                ### Delete compressed .BSON files
+                for FILE in glob.glob(FULLPATH + '/' + BACKUP_PATTERN + '_*_' + str(MONTH) + '_' + str(YEAR) + '_*' + ".bson"):
+                    os.remove(FILE)
+
+            else:
+                print("File existed, cannot create new archive: ",TARFILE)
+
+            if (os.stat(TARFILE).st_size < 100) == True:
+                print("Delete empty archive file ",TARFILE)
+                os.remove(TARFILE)
+
+            ### Uncomment this block to check content inside tar file
+            # print
+            # print('Contents:')
+            # t = tarfile.open(TARFILE, 'r')
+            # for member_info in t.getmembers():
+            #     print(member_info.name)
+            # print
+            ###########################################################
+
+        ### Remove all contents inside BACKUP_PATTERN_removelist directory
+        ### NOTE: NEVER put any data files inside this directory. 
+        ### Files inside this directory is temporary file, and are used to store temporary pointer's address only
+        if BACKUP_PATTERN in CHILD_DIR and '_removelist' in CHILD_DIR:
+            FULLPATH = os.path.join(DIR , CHILD_DIR)
+            shutil.rmtree(FULLPATH)
+"""*******************End of def**************************************"""
