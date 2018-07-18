@@ -212,6 +212,7 @@ def compress_docs(DIR, BACKUP_PATTERN, MONTH, YEAR):
 
                 ### Delete compressed .BSON files
                 for FILE in glob.glob(FULLPATH + '/' + BACKUP_PATTERN + '_*_' + str(MONTH) + '_' + str(YEAR) + '_*' + ".bson"):
+                    print("Delete compressed BSON file: ", FILE)
                     os.remove(FILE)
 
             else:
