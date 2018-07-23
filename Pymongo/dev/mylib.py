@@ -65,11 +65,12 @@ def backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BE
 
         """Backup, list docs to delete"""
         total = 0
+        totaldel = 0
         with open(DELETELIST_FILENAME, 'wb') as lf:
             with open(OUTPUT_FILENAME, 'wb') as tf:
                 for item in cursor:
                     total += 1
-                    print ("Add docs to delete: "+item['_id'])
+                    # print ("Add docs to delete: "+ str(item['_id']))
                     tf.write(BSON.encode(item))
                     lf.write(str(item['_id'])+'\n')
         print (OUTPUT_FILENAME+" .Total documents: ", total)
@@ -97,10 +98,12 @@ def backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BE
                 for line in lf:
                     ID = line.rstrip()
                     RESULT = collection.delete_one({'_id': ID})
-                    print ("Deleting: ",ID,"   Return: ",RESULT.deleted_count)
-                    #time.sleep(0.001)
-
+                    if int(RESULT.deleted_count) > 0:
+                        totaldel += 1
+                    # print("Deleting: ",ID,"   Return: ",RESULT.deleted_count)
+                    # time.sleep(0.001)
             PART_NUM += 1
+        print(DELETELIST_FILENAME+". Total deleted documents: ", totaldel)
 
         print ("Current FLAG: ",FLAG)
         print ("Last filename: ",DELETELIST_FILENAME)
