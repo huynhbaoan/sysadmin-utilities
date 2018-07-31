@@ -3,11 +3,23 @@
 import pymongo
 from pymongo import MongoClient
 import mylib
-import time, datetime, calendar
+import time, datetime, calendar, argparse, string, os
 
 
-BACKUP_PATTERN = 'GameRewardLog'
-INDEX_PATTERN = 'createdAt'
+
+"""" Initial args parser """
+parser = argparse.ArgumentParser()
+parser.add_argument("BACKUP_PATTERN", help="Enter collection's name here.", type=str)
+parser.add_argument("INDEX_PATTERN", help="Enter indexed field here.", type=str)
+args = parser.parse_args()
+
+
+""" Clean up and standallize input args """
+PATTERN_PUNCTUATION = """!"#$%&'()*+,./:;<=>?@[\]^`{|}~"""
+BACKUP_PATTERN = args.BACKUP_PATTERN.translate(None, PATTERN_PUNCTUATION)
+INDEX_PATTERN = args.INDEX_PATTERN.translate(None, PATTERN_PUNCTUATION)
+print("BACKUP_PATTERN: ", BACKUP_PATTERN)
+print("INDEX_PATTERN: ", INDEX_PATTERN)
 
 
 """MongoDB connection"""
@@ -52,35 +64,35 @@ for YEAR in range(BEGIN_YEAR, END_YEAR+1):
             if MONTH == 2:
                 if YEAR % 400 == 0 or (YEAR % 4 == 0 and YEAR % 100 != 0):
                     for DAY in range(1, 30):
-                        mylib.backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
+                        mylib.backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
                 else:
                     for DAY in range(1, 29):
-                        mylib.backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
+                        mylib.backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
             elif MONTH == 4 or MONTH == 6 or MONTH == 9 or MONTH == 11:
                 for DAY in range(1, 31):
-                    mylib.backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
+                    mylib.backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
             else:
                 for DAY in range(1, 32):
-                    mylib.backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
+                    mylib.backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
     else:
         for MONTH in range(BEGIN_MONTH, END_MONTH+1):
             if MONTH != END_MONTH:
                 if MONTH == 2:
                     if YEAR % 400 == 0 or (YEAR % 4 == 0 and YEAR % 100 != 0):
                         for DAY in range(1, 30):
-                            mylib.backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
+                            mylib.backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
                     else:
                         for DAY in range(1, 29):
-                            mylib.backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
+                            mylib.backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
                 elif MONTH == 4 or MONTH == 6 or MONTH == 9 or MONTH == 11:
                     for DAY in range(1, 31):
-                        mylib.backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
+                        mylib.backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
                 else:
                     for DAY in range(1, 32):
-                        mylib.backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
+                        mylib.backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
             else:
                 for DAY in range(BEGIN_DAY, END_DAY+1):
-                    mylib.backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
+                    mylib.backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM)
             
 """Delete all empty dumped files and move data files to directory"""
 mylib.re_arrange(BACKUP_PATTERN)

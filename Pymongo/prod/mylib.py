@@ -33,7 +33,8 @@ def timerange_validate (BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, END_DAY, END_MONTH, 
 
 
 
-"""Main archive engine, find, backup and delete document"""
+"""Main archive engine, find, backup and delete document.
+   For special ObjectId created by Mondra code."""
 def backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM):
     
     """Convert normal DATE to EPOCH DATE"""
@@ -98,6 +99,86 @@ def backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BE
                 for line in lf:
                     ID = line.rstrip()
                     RESULT = collection.delete_one({'_id': ID})
+                    if int(RESULT.deleted_count) > 0:
+                        totaldel += 1
+                    # print("Deleting: ",ID,"   Return: ",RESULT.deleted_count)
+                    # time.sleep(0.001)
+            PART_NUM += 1
+        print(DELETELIST_FILENAME+". Total deleted documents: ", totaldel)
+
+        print ("Current FLAG: ",FLAG)
+        print ("Last filename: ",DELETELIST_FILENAME)
+        print;print;print;
+"""*******************End of def**************************************"""
+
+
+
+"""Main archive engine, find, backup and delete document. 
+   For standard ObjectId."""
+def backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM):
+    
+    """Convert normal DATE to EPOCH DATE"""
+    BEGIN_DATE = datetime.datetime(BEGIN_YEAR,BEGIN_MONTH,BEGIN_DAY,0,0,0)
+    END_DATE = datetime.datetime(YEAR,MONTH,DAY,0,0,0)
+    EPOCH = datetime.datetime.utcfromtimestamp(0)
+    E_BEGIN_DATE = (BEGIN_DATE - EPOCH).total_seconds() * 1000
+    E_END_DATE = (END_DATE - EPOCH).total_seconds() * 1000
+
+
+    FLAG = 0
+    PART_NUM = BEGIN_PART_NUM
+    while FLAG == 0:
+
+        """Generate filename to backup/delete"""    
+        OUTPUT_FILENAME = str(BACKUP_PATTERN)+'_'+str(DAY)+'_'+str(MONTH)+'_'+str(YEAR)+'_'+str(PART_NUM)+'.bson'
+        DELETELIST_FILENAME = str(BACKUP_PATTERN)+'_'+str(DAY)+'_'+str(MONTH)+'_'+str(YEAR)+'_'+str(PART_NUM)+'.txt'
+        print ("Current filename: ",DELETELIST_FILENAME)
+
+        """Generate cursor to find document"""
+        print ("Searching 50.000 docs to delete...")
+        cursor = collection.find( { '$and': [
+            {INDEX_PATTERN: { '$lt': E_END_DATE } }, \
+            {INDEX_PATTERN: { '$gte': E_BEGIN_DATE } } \
+            ] } )\
+            .max_scan(50000)
+        # pprint.pprint(cursor.explain())    # leave here to debug of neccessary
+
+
+        """Backup, list docs to delete"""
+        total = 0
+        totaldel = 0
+        with open(DELETELIST_FILENAME, 'wb') as lf:
+            with open(OUTPUT_FILENAME, 'wb') as tf:
+                for item in cursor:
+                    total += 1
+                    # print ("Add docs to delete: "+ str(item['_id']))
+                    tf.write(BSON.encode(item))
+                    lf.write(str(item['_id'])+'\n')
+        print (OUTPUT_FILENAME+" .Total documents: ", total)
+
+        if total > 0:
+            """Sleep to reduce memory stress on Mongo server"""
+            print ("Search completed. Waiting 2 seconds for Mongo server...")
+            time.sleep(2)
+        else:
+            print ("No docs found. Skip waiting.")
+
+        
+        """Decide either stop or continue to search"""
+        """FLAG 0: continue, FLAG 1: stop"""
+        """DELETELIST_FILENAME = 0 bytes mean no record to delete, then stop"""
+        if (os.stat(DELETELIST_FILENAME).st_size == 0) == True:
+            FLAG = 1
+            print (DELETELIST_FILENAME+": No more docs to delete")
+        else:
+            FLAG = 0
+
+            """Else, Delete docs"""
+            print (DELETELIST_FILENAME+": BEGIN DELETING DOCS!")
+            with open(DELETELIST_FILENAME, 'rb') as lf:
+                for line in lf:
+                    ID = line.rstrip()
+                    RESULT = collection.delete_one({'_id': ObjectId(ID)})
                     if int(RESULT.deleted_count) > 0:
                         totaldel += 1
                     # print("Deleting: ",ID,"   Return: ",RESULT.deleted_count)
@@ -205,7 +286,7 @@ def compress_docs(DIR, BACKUP_PATTERN, MONTH, YEAR):
                                 ### Split head, tail to avoid adding fullpath to tarfile
                                 head, tail = os.path.split(FILE)
                                 targz.add(FILE, arcname=tail)
-                                print("Compressed BSON file: ", tail)
+                                # print("Compressed BSON file: ", tail)
                             except:
                                 print("Error adding file ", FILE, "Error: ", sys.exc_info())
                                 raise
@@ -215,14 +296,14 @@ def compress_docs(DIR, BACKUP_PATTERN, MONTH, YEAR):
 
                 ### Delete compressed .BSON files
                 for FILE in glob.glob(FULLPATH + '/' + BACKUP_PATTERN + '_*_' + str(MONTH) + '_' + str(YEAR) + '_*' + ".bson"):
-                    print("Delete compressed BSON file: ", FILE)
+                    # print("Delete compressed BSON file: ", FILE)
                     os.remove(FILE)
 
             else:
                 print("File existed, cannot create new archive: ",TARFILE)
 
             if (os.stat(TARFILE).st_size < 100) == True:
-                print("Delete empty archive file ",TARFILE)
+                # print("Delete empty archive file ",TARFILE)
                 os.remove(TARFILE)
 
             ### Uncomment this block to check content inside tar file

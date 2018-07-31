@@ -53,7 +53,17 @@ declare -a COLL_ARRAY=(\
     "SpecialRewardLog:createdAt"\
     "UserPreference:_modified"\
     "SkillJewelUsedLog:createdAt"\
+    "SkillJewelSoldLog:createdAt"\
     )
+
+declare -a COLL_ARRAY2=(\
+    "LoginDetailLog:createdAt"\
+    "DeviceTutorialLog:_created"\
+    "LoginLog:createdAt"\
+    "RealTimeBattleLog:update_time"\
+    "DeviceFirstMeetMultiLog:_modified"\
+    "GuildActionLog:createdAt"\
+)
 DIR="/data2/log_archived/"
 cd $DIR
 
@@ -64,12 +74,31 @@ arraylength=${#COLL_ARRAY[@]}
 for (( i=1; i<${arraylength}+1; i++ ));
 do
     # Extract PATTERN and call python to do optimize log
+    # Cut log with custom ObjectId
     BACKUP_PATTERN=$(echo ${COLL_ARRAY[$i-1]} | cut -d : -f 1)
     INDEX_PATTERN=$(echo ${COLL_ARRAY[$i-1]} | cut -d : -f 2)
     echo "Deleting old log " $i " / " ${arraylength} " : " ${COLL_ARRAY[$i-1]}
-    python args-find-delete-document.py $BACKUP_PATTERN $INDEX_PATTERN
+    python args-find-delete-document-customid.py $BACKUP_PATTERN $INDEX_PATTERN
     echo "Compressing old log " $i " / " ${arraylength} " : " $BACKUP_PATTERN
     python args-compress-document.py $BACKUP_PATTERN $DIR
 done
 
-find /data2/log_archived/ -name "*.tar*" -mtime -14 -print0 | xargs -0 -t -I % bash -c '/home/gsysadmin/.local/bin/aws s3 cp % s3://bucketname.path --storage-class ONEZONE_IA'
+
+# get length of an array
+arraylength=${#COLL_ARRAY2[@]}
+
+# use for loop to read all values and indexes
+for (( i=1; i<${arraylength}+1; i++ ));
+do
+    # Extract PATTERN and call python to do optimize log
+    # Cut log with standard ObjectId
+    BACKUP_PATTERN=$(echo ${COLL_ARRAY2[$i-1]} | cut -d : -f 1)
+    INDEX_PATTERN=$(echo ${COLL_ARRAY2[$i-1]} | cut -d : -f 2)
+    echo "Deleting old log " $i " / " ${arraylength} " : " ${COLL_ARRAY2[$i-1]}
+    python args-find-delete-document-stdid.py $BACKUP_PATTERN $INDEX_PATTERN
+    echo "Compressing old log " $i " / " ${arraylength} " : " $BACKUP_PATTERN
+    python args-compress-document.py $BACKUP_PATTERN $DIR
+done
+
+# upload to S3
+# find /data2/log_archived/ -name "*.tar*" -mtime -14 -print0 | xargs -0 -t -I % bash -c '/home/gsysadmin/.local/bin/aws s3 cp % s3://bucketname.path --storage-class ONEZONE_IA'
