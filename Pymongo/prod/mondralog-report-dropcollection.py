@@ -5,7 +5,7 @@ from pymongo import MongoClient
 import pprint
 import time
 
-client = MongoClient('mongodb://10.0.1.56:27017/')
+client = MongoClient('mongodb://localhost:27017/')
 db = client['mondra_log']
 
 for COLLECTION_NAME in ['BattleReport', 'BattleUserReport', 'DeckReport', \
@@ -29,7 +29,7 @@ for COLLECTION_NAME in ['BattleReport', 'BattleUserReport', 'DeckReport', \
                 print ("Result: "+str(collection))
                 time.sleep(0.5)
 
-    for YEAR in range(2016, 2017):
+    for YEAR in range(2016, 2018):
         for MONTH in range(1, 13): 
             for DAY in range(1, 32): 
                 if (DAY < 10):
@@ -47,8 +47,8 @@ for COLLECTION_NAME in ['BattleReport', 'BattleUserReport', 'DeckReport', \
                 print ("Result: "+str(collection))
                 time.sleep(0.5)
 
-    for YEAR in range(2017, 2018):
-        for MONTH in range(1, 10): 
+    for YEAR in range(2018, 2019):
+        for MONTH in range(1, 4): 
             for DAY in range(1, 32): 
                 if (DAY < 10):
                     FDAY = '0'+str(DAY)

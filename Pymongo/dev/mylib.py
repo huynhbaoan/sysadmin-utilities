@@ -35,7 +35,7 @@ def timerange_validate (BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, END_DAY, END_MONTH, 
 
 """Main archive engine, find, backup and delete document.
    For special ObjectId created by Mondra code."""
-def backup_delete_docs(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM):
+def backup_delete_docs_customid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, DAY, MONTH, YEAR, collection, BEGIN_PART_NUM):
     
     """Convert normal DATE to EPOCH DATE"""
     BEGIN_DATE = datetime.datetime(BEGIN_YEAR,BEGIN_MONTH,BEGIN_DAY,0,0,0)
@@ -196,43 +196,37 @@ def backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MON
 """Move backed up file to new location"""
 def re_arrange(BACKUP_PATTERN):
     
-    """Rename any exitsted files/directories based on current timestamp to avoid overwriting data"""
-    CURRENT_DATE = str(datetime.date.today()).replace("-","")
-    CURRENT_TIME = str(datetime.datetime.now().time()).replace(":","").split(".")[0]
-    TEMPSRC = BACKUP_PATTERN
-    if os.path.exists(TEMPSRC) == True:
-        TEMPDST = BACKUP_PATTERN+'_'+CURRENT_DATE+'_'+CURRENT_TIME
-        print("Move ",TEMPSRC," to ",TEMPDST)
-        os.rename(TEMPSRC, TEMPDST)
-    
-    TEMPSRC = BACKUP_PATTERN+'_removelist'
-    if os.path.exists(TEMPSRC) == True:
-        TEMPDST = BACKUP_PATTERN+'_removelist_'+CURRENT_DATE+'_'+CURRENT_TIME
-        print("Move ",TEMPSRC," to ",TEMPDST)
-        os.rename(TEMPSRC, TEMPDST)
-
-    """Create directory"""
-    try:
-        os.makedirs(BACKUP_PATTERN+'_removelist',mode=0o755)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise SystemExit
-    try:
+    """ Check if we have existing directory for BSON and TXT file """
+    DIR = ""
+    for file in glob.glob(BACKUP_PATTERN):
+        DIR = file
+    if DIR == "":
+        print("No existing BSON directory found. Create new directory.")
         os.makedirs(BACKUP_PATTERN,mode=0o755)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise SystemExit
+    else:
+        print("Found BSON directory: ", DIR)
+
+    DIR = ""
+    for file in glob.glob(BACKUP_PATTERN+"_removelist"):
+        DIR = file
+    if DIR == "":
+        print("No existing TXT directory found. Create new directory.")
+        os.makedirs(BACKUP_PATTERN+'_removelist',mode=0o755)
+    else:
+        print("Found TXT directory: ", DIR)
+
             
     print("Begin cleaning up files.")
     """Remove empty file, then 
-    Move all .bson, .txt file to new directory"""
+    Move all .bson, .txt file to directory"""
+    DST = BACKUP_PATTERN
     for file in glob.glob(BACKUP_PATTERN+"*.bson"):
         if (os.stat(file).st_size == 0) == True:
             print("Delete empty BSON file ",file)
             os.remove(file)
         else:
             print("Move ",file)
-            shutil.move(file, BACKUP_PATTERN)
+            shutil.move(file, DST)
     DST = BACKUP_PATTERN+'_removelist'
     for file in glob.glob(BACKUP_PATTERN+"*.txt"):
         if (os.stat(file).st_size == 0) == True:
@@ -277,7 +271,7 @@ def compress_docs(DIR, BACKUP_PATTERN, MONTH, YEAR):
 
             ### Create archive
             TARFILE = os.path.join(DIR, CHILD_DIR, BACKUP_PATTERN + '_' + str(MONTH) + '_' + str(YEAR) + '.tar.gz')
-            if os.path.isfile(TARFILE) != True:
+            if not os.path.isfile(TARFILE):
                 try:
                     with tarfile.TarFile.gzopen(TARFILE, mode='w', compresslevel=9) as targz:
                         print("Create archive: ", TARFILE)
@@ -300,7 +294,7 @@ def compress_docs(DIR, BACKUP_PATTERN, MONTH, YEAR):
                     os.remove(FILE)
 
             else:
-                print("File existed, cannot create new archive: ",TARFILE)
+                print("File existed, will not create new archive: ",TARFILE)
 
             if (os.stat(TARFILE).st_size < 100) == True:
                 # print("Delete empty archive file ",TARFILE)
@@ -321,4 +315,126 @@ def compress_docs(DIR, BACKUP_PATTERN, MONTH, YEAR):
         if BACKUP_PATTERN in CHILD_DIR and '_removelist' in CHILD_DIR:
             FULLPATH = os.path.join(DIR , CHILD_DIR)
             shutil.rmtree(FULLPATH)
+"""*******************End of def**************************************"""
+
+
+
+"""Resume from last interuptted find/delete"""
+def resume_stdid(BACKUP_PATTERN, INDEX_PATTERN, collection):
+    
+    """Delete empty files, left by interuptted operation"""
+    for file in glob.glob(BACKUP_PATTERN+"*.bson"):
+        if (os.stat(file).st_size == 0) == True:
+            print("Delete empty BSON file ",file)
+            os.remove(file)
+    for file in glob.glob(BACKUP_PATTERN+"*.txt"):
+        if (os.stat(file).st_size == 0) == True:
+            print("Delete empty TXT file ",file)
+            os.remove(file)
+    
+    """Find the last BSON and TXT file to resume"""
+    LAST_MTIME = datetime.datetime.strptime("Sat Jan 1 00:00:01 2000", '%a %b %d %H:%M:%S %Y')
+    LAST_MFILE = ""
+    for file in glob.glob(BACKUP_PATTERN+"*.bson"):
+        TIME = datetime.datetime.strptime(time.ctime(os.path.getmtime(file)), '%a %b %d %H:%M:%S %Y') 
+        if LAST_MTIME < TIME:
+            LAST_MTIME = TIME
+            LAST_MFILE = file
+
+    """Base on result, decide to resume or start a new job"""
+    if LAST_MFILE == "":
+        print("No BSON files found. We are running a new job.")
+        BEGIN_DAY = 1
+        BEGIN_MONTH = 12
+        BEGIN_YEAR = 2015
+        DATE_STR = str(BEGIN_DAY) + ' ' + str(BEGIN_MONTH) + ' ' + str(BEGIN_YEAR)
+        DATE = datetime.datetime.strptime(DATE_STR, '%d %m %Y') + datetime.timedelta(days=1)
+        return(DATE)
+    else:
+        print("Found BSON file: ", LAST_MFILE)
+        print("Last modified time: ", LAST_MTIME)
+        print("Resuming from last job...")    
+
+        FILENAME = str(LAST_MFILE).split(".")[0]
+        for file in glob.glob(FILENAME+".txt"):
+            totaldel = 0
+            print("Now, delete leftover docs from last run.")
+            time.sleep(5)
+            with open(file, 'rb') as lf:
+                for line in lf:
+                    ID = line.rstrip()
+                    RESULT = collection.delete_one({'_id': ObjectId(ID)})
+                    if int(RESULT.deleted_count) > 0:
+                        totaldel += 1
+            print(file+". Total deleted documents: ", totaldel)
+        BEGIN_DAY = int(str(LAST_MFILE).split(".")[0].split("_")[1])
+        BEGIN_MONTH = int(str(LAST_MFILE).split(".")[0].split("_")[2])
+        BEGIN_YEAR = int(str(LAST_MFILE).split(".")[0].split("_")[3])
+        PART_NUM = int(str(LAST_MFILE).split(".")[0].split("_")[4])
+        PART_NUM += 1
+        backup_delete_docs_stdid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, collection, PART_NUM)
+        DATE_STR = str(BEGIN_DAY) + ' ' + str(BEGIN_MONTH) + ' ' + str(BEGIN_YEAR)
+        DATE = datetime.datetime.strptime(DATE_STR, '%d %m %Y') + datetime.timedelta(days=1)
+        return(DATE)
+"""*******************End of def**************************************"""
+
+
+
+"""Resume from last interuptted find/delete"""
+def resume_customid(BACKUP_PATTERN, INDEX_PATTERN, collection):
+    
+    """Delete empty files, left by interuptted operation"""
+    for file in glob.glob(BACKUP_PATTERN+"*.bson"):
+        if (os.stat(file).st_size == 0) == True:
+            print("Delete empty BSON file ",file)
+            os.remove(file)
+    for file in glob.glob(BACKUP_PATTERN+"*.txt"):
+        if (os.stat(file).st_size == 0) == True:
+            print("Delete empty TXT file ",file)
+            os.remove(file)
+    
+    """Find the last BSON and TXT file to resume"""
+    LAST_MTIME = datetime.datetime.strptime("Sat Jan 1 00:00:01 2000", '%a %b %d %H:%M:%S %Y')
+    LAST_MFILE = ""
+    for file in glob.glob(BACKUP_PATTERN+"*.bson"):
+        TIME = datetime.datetime.strptime(time.ctime(os.path.getmtime(file)), '%a %b %d %H:%M:%S %Y') 
+        if LAST_MTIME < TIME:
+            LAST_MTIME = TIME
+            LAST_MFILE = file
+
+    """Base on result, decide to resume or start a new job"""
+    if LAST_MFILE == "":
+        print("No BSON files found. We are running a new job.")
+        BEGIN_DAY = 1
+        BEGIN_MONTH = 12
+        BEGIN_YEAR = 2015
+        DATE_STR = str(BEGIN_DAY) + ' ' + str(BEGIN_MONTH) + ' ' + str(BEGIN_YEAR)
+        DATE = datetime.datetime.strptime(DATE_STR, '%d %m %Y') + datetime.timedelta(days=1)
+        return(DATE)
+    else:
+        print("Found BSON file: ", LAST_MFILE)
+        print("Last modified time: ", LAST_MTIME)
+        print("Resuming from last job...")    
+
+        FILENAME = str(LAST_MFILE).split(".")[0]
+        for file in glob.glob(FILENAME+".txt"):
+            totaldel = 0
+            print("Now, delete leftover docs from last run.")
+            time.sleep(5)
+            with open(file, 'rb') as lf:
+                for line in lf:
+                    ID = line.rstrip()
+                    RESULT = collection.delete_one({'_id': ID})
+                    if int(RESULT.deleted_count) > 0:
+                        totaldel += 1
+            print(file+". Total deleted documents: ", totaldel)
+        BEGIN_DAY = int(str(LAST_MFILE).split(".")[0].split("_")[1])
+        BEGIN_MONTH = int(str(LAST_MFILE).split(".")[0].split("_")[2])
+        BEGIN_YEAR = int(str(LAST_MFILE).split(".")[0].split("_")[3])
+        PART_NUM = int(str(LAST_MFILE).split(".")[0].split("_")[4])
+        PART_NUM += 1
+        backup_delete_docs_customid(BACKUP_PATTERN, INDEX_PATTERN, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, BEGIN_DAY, BEGIN_MONTH, BEGIN_YEAR, collection, PART_NUM)
+        DATE_STR = str(BEGIN_DAY) + ' ' + str(BEGIN_MONTH) + ' ' + str(BEGIN_YEAR)
+        DATE = datetime.datetime.strptime(DATE_STR, '%d %m %Y') + datetime.timedelta(days=1)
+        return(DATE)
 """*******************End of def**************************************"""
