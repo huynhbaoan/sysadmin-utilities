@@ -1,0 +1,18 @@
+Cloud-init note
+
+- Cloud init will not work at bootstrap: 
+
+27
+
+User_data is run only at the first start up. As your image is a custom one, I suppose it have already been started once and so user_data is desactivated.
+For windows, it can be done by checking a box in Ec2 Services Properties. I'm looking at the moment how to do that in an automated way at the end of the custom image creation.
+For linux, I suppose the mechanism is the same, and user_data needs to be re-activated on your custom image.
+The #cloud-boothook make it works because it changes the script from a user_data mechanism to a cloud-boothook one that runs on each start.
+
+Before taking AMI remove /var/lib/cloud directory (each time). Then while creating Image, set it to no-reboot.
+If these things still ain't working, you can test it further by forcing user-data to run manually. Also tailf /var/log/cloud-init-output.log for cloud-init status. It should end with something like modules:final to make your user-data run. It should not stuck on modules:config.
+sudo  rm -rf /var/lib/cloud/*
+sudo cloud-init init
+sudo cloud-init modules -m final
+
+https://stackoverflow.com/questions/27086639/user-data-scripts-is-not-running-on-my-custom-ami-but-working-in-standard-amazo
