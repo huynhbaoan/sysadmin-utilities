@@ -1,0 +1,111 @@
+https://access.redhat.com/hydra/rest/securitydata/cve/CVE-2016-3706.json
+
+https://alas.aws.amazon.com/AL2/alas.rss
+https://access.redhat.com/hydra/rest/securitydata/cve/CVE-2019-11477.json
+elinks -dump https://alas.aws.amazon.com/AL2/ALAS-2019-1222.html
+
+
+
+#!/bin/bash
+export LC_ALL=C
+
+$inspector_cve_list="/path"
+# yum --disablerepo="*" --enablerepo="amzn2-core" --sec-severity=critical,important --bugfix check-update
+# yum updateinfo list cves | egrep -v "updateinfo list|Loaded plugins|packages excluded" | tr -s ' ' > cve-list
+# yum updateinfo list | egrep -v "updateinfo list|Loaded plugins|packages excluded" | tr -s ' ' > alas-list
+
+# aws_alas_rss=$(curl "https://alas.aws.amazon.com/AL2/alas.rss")
+while IFS= read -r line
+do
+	### Extract record from Redhat CVE DB
+	payload=$(curl "https://access.redhat.com/hydra/rest/securitydata/cve/$line.json")
+	threat_severity=$(echo $payload | jq -r '.threat_severity')
+	public_date=$(echo $payload | jq -r '.public_date')
+	cvss3_base_score=$(echo $payload | jq -r '.cvss3.cvss3_base_score')
+	cvss3_scoring_vector=$(echo $payload | jq -r '.cvss3.cvss3_scoring_vector')
+	cvss3_attack_vector=$(echo $cvss3_scoring_vector | cut -d / -f 2)
+	cvss3_attack_complexity=$(echo $cvss3_scoring_vector | cut -d / -f 3)
+	cvss3_attack_privileges_required=$(echo $cvss3_scoring_vector | cut -d / -f 4)
+	cvss3_attack_user_interaction=$(echo $cvss3_scoring_vector | cut -d / -f 5)
+	cvss3_attack_scope=$(echo $cvss3_scoring_vector | cut -d / -f 6)
+	cvss3_attack_confidentiality_impact=$(echo $cvss3_scoring_vector | cut -d / -f 7)
+	cvss3_attack_integrity_impact=$(echo $cvss3_scoring_vector | cut -d / -f 8)
+	cvss3_attack_availability_impact=$(echo $cvss3_scoring_vector | cut -d / -f 9)
+	status=$(echo $payload | jq -r '.cvss3.status')
+	details=$(echo $payload | jq -r '.details | .[]' | tr '\n' ' ')
+
+
+	
+	### Merge result to 1 line
+	echo -e "$line\t$threat_severity\t$public_date\t$cvss3_base_score\t$cvss3_attack_vector\t$cvss3_attack_complexity\t$cvss3_attack_privileges_required\t$cvss3_attack_user_interaction\t$cvss3_attack_scope\t$cvss3_attack_confidentiality_impact\t$cvss3_attack_integrity_impact\t$cvss3_attack_availability_impact\t$status\t$details"
+	
+	### Compare and merge record with Amazon ALSA
+	# echo $aws_alas_rss | xmllint --format - | grep -B 3 $line | grep ALAS | cut -d ">" -f 2 | cut -d " " -f 1 | xargs -r -I % bash -c "elinks -dump https://alas.aws.amazon.com/AL2/%.html"
+	
+done < $inspector_cve_list
+
+
+
+
+
+line="CVE-2018-0494"
+public_date=$(echo $payload | jq -r '.public_date')
+cvss3_scoring_vector=""
+cvss3_scoring_vector_test=$(echo $payload | jq -r '.cvss3.cvss3_scoring_vector')
+if [[ $cvss3_scoring_vector_test != "null" ]]; then cvss3_scoring_vector=$(echo $payload | jq -r '.cvss3.cvss3_scoring_vector'); cvss3_base_score=$(echo $payload | jq -r '.cvss3.cvss3_base_score'); status=$(echo $payload | jq -r '.cvss3.status'); fi
+cvss3_scoring_vector_test=$(echo $payload | jq -r '.cvss2.cvss2_scoring_vector')
+if [[ $cvss3_scoring_vector_test != "null" ]]; then cvss3_scoring_vector=$(echo $payload | jq -r '.cvss2.cvss2_scoring_vector'); cvss3_base_score=$(echo $payload | jq -r '.cvss2.cvss2_base_score'); status=$(echo $payload | jq -r '.cvss2.status'); fi
+cvss3_scoring_vector_test=$(echo $payload | jq -r '.cvss.cvss_scoring_vector')
+if [[ $cvss3_scoring_vector_test != "null" ]]; then cvss3_scoring_vector=$(echo $payload | jq -r '.cvss.cvss_scoring_vector'); cvss3_base_score=$(echo $payload | jq -r '.cvss.cvss_base_score'); status=$(echo $payload | jq -r '.cvss.status'); fi
+echo $cvss3_scoring_vector
+details=$(echo $payload | jq -r '.details | .[]' | tr '\n' ' ')
+echo $details
+
+
+
+
+
+
+yum updateinfo list cves | egrep -v "updateinfo list|Loaded plugins|packages excluded" | tr -s ' ' > cve-list
+yum updateinfo list | egrep -v "updateinfo list|Loaded plugins|packages excluded" | tr -s ' ' > alas-list
+
+
+aws_alas_rss=$(curl "https://alas.aws.amazon.com/AL2/alas.rss")
+echo $aws_alas_rss | xmllint --format - | grep -B 3 CVE-2019-0196 | grep ALAS | cut -d ">" -f 2 | cut -d " " -f 1 | xargs -r -I % bash -c "elinks -dump https://alas.aws.amazon.com/AL2/%.html > ~/%"
+payload=$(curl "https://access.redhat.com/hydra/rest/securitydata/cve/CVE-2019-11477.json")
+
+
+
+line="CVE-2019-11477"
+payload=$(curl "https://access.redhat.com/hydra/rest/securitydata/cve/$line.json")
+threat_severity=$(echo $payload | jq -r '.threat_severity')
+public_date=$(echo $payload | jq -r '.public_date')
+cvss3_base_score=$(echo $payload | jq -r '.cvss3.cvss3_base_score')
+cvss3_scoring_vector=$(echo $payload | jq -r '.cvss3.cvss3_scoring_vector')
+cvss3_attack_vector=$(echo $cvss3_scoring_vector | cut -d / -f 2)
+cvss3_attack_complexity=$(echo $cvss3_scoring_vector | cut -d / -f 3)
+cvss3_attack_privileges_required=$(echo $cvss3_scoring_vector | cut -d / -f 4)
+cvss3_attack_user_interaction=$(echo $cvss3_scoring_vector | cut -d / -f 5)
+cvss3_attack_scope=$(echo $cvss3_scoring_vector | cut -d / -f 6)
+cvss3_attack_confidentiality_impact=$(echo $cvss3_scoring_vector | cut -d / -f 7)
+cvss3_attack_integrity_impact=$(echo $cvss3_scoring_vector | cut -d / -f 8)
+cvss3_attack_availability_impact=$(echo $cvss3_scoring_vector | cut -d / -f 9)
+status=$(echo $payload | jq -r '.cvss3.status')
+details=$(echo $payload | jq -r '.details | .[]' | tr '\n' ' ')
+echo -e "$line\t$threat_severity\t$public_date\t$cvss3_base_score\t$cvss3_attack_vector\t$cvss3_attack_complexity\t$cvss3_attack_privileges_required\t$cvss3_attack_user_interaction\t$cvss3_attack_scope\t$cvss3_attack_confidentiality_impact\t$cvss3_attack_integrity_impact\t$cvss3_attack_availability_impact\t$status\t$details"
+
+echo $threat_severity
+echo $public_date
+echo $cvss3_base_score
+echo $cvss3_scoring_vector
+echo $cvss3_attack_vector
+echo $cvss3_attack_complexity
+echo $cvss3_attack_privileges_required
+echo $cvss3_attack_user_interaction
+echo $cvss3_attack_scope
+echo $cvss3_attack_confidentiality
+echo $cvss3_attack_integrity_impact
+echo $cvss3_attack_availability_impact
+echo $status
+echo $details
+
